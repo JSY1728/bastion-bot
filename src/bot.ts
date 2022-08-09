@@ -48,7 +48,13 @@ export class BotFactory {
 		bot.on("guildDelete", guild => logger.notify(`Guild delete: ${serializeServer(guild)}`));
 		bot.on("ready", () => {
 			logger.notify(`Logged in as ${bot.user?.tag} - ${bot.user?.id}`);
-			bot.user?.setActivity(process.env.BOT_PRESENCE || "<card name> to search!");
+			let activity = process.env.BOT_PRESENCE || "<card name> to search!";
+			let activity2 = "translators wanted!";
+			bot.user?.setActivity(activity);
+			setInterval(() => {
+				[activity, activity2] = [activity2, activity];
+				bot.user?.setActivity(activity);
+			}, 2000);
 		});
 
 		for (const listener of this.listeners) {
