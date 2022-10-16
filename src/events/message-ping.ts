@@ -14,7 +14,7 @@ export class PingMessageListener implements Listener<"messageCreate"> {
 	constructor(@inject("LocaleProvider") private locales: LocaleProvider) {}
 
 	async run(message: Message): Promise<void> {
-		if (message.author.bot || message.reference) {
+		if (message.reference || (message.author.bot && message.author.id !== process.env.HEALTHCHECK_BOT_SNOWFLAKE)) {
 			return;
 		}
 		if (

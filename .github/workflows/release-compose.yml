@@ -45,6 +45,7 @@ jobs:
           SEARCH_API: ${{ secrets.SEARCH_API }}
           IMAGE_HOST: ${{ secrets.IMAGE_HOST }}
           FTP_URL: ${{ secrets.FTP_URL }}
+          HEALTHCHECK_BOT_SNOWFLAKE: ${{ secrets.HEALTHCHECK_BOT_SNOWFLAKE }}
           BOT_LOGGER_WEBHOOK: ${{ secrets.PRODUCTION_LOGGER_WEBHOOK }}
           BOT_PRESENCE: ${{ github.event.inputs.presence }}
           BOT_MOTD: ${{ github.event.inputs.motd }}

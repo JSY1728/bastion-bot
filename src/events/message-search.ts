@@ -206,7 +206,7 @@ export class SearchMessageListener implements Listener<"messageCreate"> {
 	}
 
 	async run(message: Message): Promise<void> {
-		if (message.author.bot) {
+		if (message.author.bot && message.author.id !== process.env.HEALTHCHECK_BOT_SNOWFLAKE) {
 			return;
 		}
 		// Deactivate new functionality in select servers

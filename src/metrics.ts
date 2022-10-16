@@ -62,6 +62,9 @@ CREATE TABLE IF NOT EXISTS "searches" (
 		const guild = searchMessage.guildId;
 		const channel = searchMessage.channelId;
 		const author = searchMessage.author.id;
+		if (author === process.env.HEALTHCHECK_BOT_SNOWFLAKE) {
+			return;
+		}
 		let result = null;
 		if (resultCard) {
 			if (resultCard.password) {
