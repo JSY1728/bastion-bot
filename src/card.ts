@@ -3,7 +3,7 @@ import { ChatInputCommandInteraction, EmbedBuilder, EmbedFooterOptions } from "d
 import { Got } from "got";
 import { parseDocument } from "htmlparser2";
 import { c, t, useLocale } from "ttag";
-import { CardSchema, LimitRegulation } from "./definitions";
+import { CardSchema, OCGLimitRegulation, SpeedLimitRegulation } from "./definitions";
 import { RushCardSchema } from "./definitions/rush";
 import { Locale, LocaleProvider } from "./locale";
 
@@ -49,6 +49,8 @@ c("monster-type-race").t`Toon`;
 c("monster-type-race").t`Spirit`;
 c("monster-type-race").t`Union`;
 c("monster-type-race").t`Gemini`;
+// Exclusive to Rush Duel
+c("monster-type-race").t`Maximum`;
 c("spell-trap-property").t`Normal Spell`;
 c("spell-trap-property").t`Continuous Spell`;
 c("spell-trap-property").t`Equip Spell`;
@@ -58,6 +60,12 @@ c("spell-trap-property").t`Ritual Spell`;
 c("spell-trap-property").t`Normal Trap`;
 c("spell-trap-property").t`Continuous Trap`;
 c("spell-trap-property").t`Counter Trap`;
+// SpeedLimitRegulation is not converted to a number for display
+c("limit-regulation").t`Forbidden`;
+c("limit-regulation").t`Limited 1`;
+c("limit-regulation").t`Limited 2`;
+c("limit-regulation").t`Limited 3`;
+c("limit-regulation").t`Unlimited`;
 
 // Guarantee default locale at import time since the resulting strings matter.
 useLocale("en");
@@ -87,7 +95,16 @@ export const RaceIcon = {
 	[c("monster-type-race").t`Divine-Beast`]: "<:DivineBeast:602707925730852874>",
 	[c("monster-type-race").t`Creator God`]: "<:CreatorGod:602707927219961866>",
 	[c("monster-type-race").t`Wyrm`]: "<:Wyrm:602707927068835884>",
-	[c("monster-type-race").t`Cyberse`]: "<:Cyberse:602707927421157376>"
+	[c("monster-type-race").t`Cyberse`]: "<:Cyberse:602707927421157376>",
+	[c("monster-type-race").t`Illusion`]: null,
+	// Exclusive to Rush Duel
+	[c("monster-type-race").t`Galaxy`]: null,
+	// Rush Duel Fusion
+	[c("monster-type-race").t`Cyborg`]: null,
+	[c("monster-type-race").t`Magical Knight`]: null,
+	[c("monster-type-race").t`High Dragon`]: null,
+	[c("monster-type-race").t`Celestial Warrior`]: null,
+	[c("monster-type-race").t`Omega Psychic`]: null
 	//Yokai: "<:Yokai:602707927932993546>",
 	//Charisma: "<:Charisma:602707891530629130>"
 };
@@ -120,6 +137,20 @@ export const Icon = {
 	RightScale: "<:ScaleRight:602710170430210048>",
 	Level: "<:level:602707925949087760>",
 	Rank: "<:rank:602707927114973185>"
+};
+
+const MasterDuelRarityIcon = {
+	N: "<:Rarity_N_left:1153442945828147231><:Rarity_N_right:1153442947551989791>",
+	R: "<:Rarity_R_left:1153442950655770707><:Rarity_R_right:1153442956141940818>",
+	SR: "<:Rarity_SR_left:1153442958763376651><:Rarity_SR_right:1153442961586130993>",
+	UR: "<:Rarity_UR_left:1153442964505366638><:Rarity_UR_right:1153442966195679325>"
+};
+
+const MasterDuelRarityLocalization = {
+	N: () => c("master-duel-rarity").t`Common (N)`,
+	R: () => c("master-duel-rarity").t`Rare (R)`,
+	SR: () => c("master-duel-rarity").t`Super Rare (SR)`,
+	UR: () => c("master-duel-rarity").t`Ultra Rare (UR)`
 };
 
 // TODO: remove "kid"
@@ -195,7 +226,7 @@ export async function getCard(
 	throw new got.HTTPError(response);
 }
 
-function formatLimitRegulation(value: LimitRegulation | null | undefined): number | null {
+function formatOCGLimitRegulation(value: OCGLimitRegulation | null | undefined): number | null {
 	switch (value) {
 		case "Forbidden":
 			return 0;
@@ -208,6 +239,19 @@ function formatLimitRegulation(value: LimitRegulation | null | undefined): numbe
 		default:
 			return null;
 	}
+}
+
+function formatSpeedLimitRegulation(value: SpeedLimitRegulation | null | undefined): string | null {
+	if (
+		value === "Forbidden" ||
+		value === "Limited 1" ||
+		value === "Limited 2" ||
+		value === "Limited 3" ||
+		value === "Unlimited"
+	) {
+		return rc("limit-regulation").gettext(value);
+	}
+	return null;
 }
 
 export function parseAndExpandRuby(html: string): [string, string] {
@@ -336,9 +380,9 @@ export function createCardEmbed(card: Static<typeof CardSchema>, lang: Locale): 
 	}
 
 	const limitRegulations = [
-		{ label: "TCG: ", value: formatLimitRegulation(card.limit_regulation.tcg) },
-		{ label: "OCG: ", value: formatLimitRegulation(card.limit_regulation.ocg) },
-		{ label: "Speed: ", value: formatLimitRegulation(card.limit_regulation.speed) }
+		{ label: "TCG: ", value: formatOCGLimitRegulation(card.limit_regulation.tcg) },
+		{ label: "OCG: ", value: formatOCGLimitRegulation(card.limit_regulation.ocg) },
+		{ label: "Speed: ", value: formatSpeedLimitRegulation(card.limit_regulation.speed) }
 	];
 	let limitRegulationDisplay: string;
 	if (["ja", "ko", "zh-CN", "zh-TW"].includes(lang)) {
@@ -359,6 +403,13 @@ export function createCardEmbed(card: Static<typeof CardSchema>, lang: Locale): 
 		description += "\n";
 	}
 
+	if (card.master_duel_rarity) {
+		const rarity_icon = MasterDuelRarityIcon[card.master_duel_rarity];
+		const localized_rarity = MasterDuelRarityLocalization[card.master_duel_rarity]();
+		description += t`**Master Duel rarity**: ${rarity_icon} ${localized_rarity}`;
+		description += "\n";
+	}
+
 	// TODO: expand with hyperlinks
 	if (card.card_type === "Monster") {
 		embed.setColor(
@@ -376,12 +427,13 @@ export function createCardEmbed(card: Static<typeof CardSchema>, lang: Locale): 
 		);
 
 		const race = card.monster_type_line.split(" /")[0];
+		const raceIcon = RaceIcon[race] || "";
 		const localizedMonsterTypeLine = card.monster_type_line
 			.split(" / ")
 			.map(s => rc("monster-type-race").gettext(s))
 			.join(" / ");
 		const localizedAttribute = rc("attribute").gettext(card.attribute);
-		description += t`**Type**: ${RaceIcon[race]} ${localizedMonsterTypeLine}`;
+		description += t`**Type**: ${raceIcon} ${localizedMonsterTypeLine}`;
 		description += "\n";
 		description += t`**Attribute**: ${AttributeIcon[card.attribute]} ${localizedAttribute}`;
 		description += "\n";

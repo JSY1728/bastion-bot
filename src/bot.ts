@@ -1,5 +1,5 @@
-import { Client, GatewayIntentBits, Options, Partials } from "discord.js";
-import { injectable, injectAll } from "tsyringe";
+import { ActivityType, Client, GatewayIntentBits, Options, Partials } from "discord.js";
+import { injectAll, injectable } from "tsyringe";
 import { Listener } from "./events";
 import { getLogger } from "./logger";
 import { serialiseServer } from "./utils";
@@ -46,15 +46,17 @@ export class BotFactory {
 		bot.on("shardReady", shard => logger.notify(`Shard ${shard} ready`));
 		bot.on("shardReconnecting", shard => logger.info(`Shard ${shard} reconnecting`));
 		bot.on("shardResume", (shard, replayed) => logger.info(`Shard ${shard} resumed: ${replayed} events replayed`));
+		// TODO: remove curly braces when updated to TS 5.0+: https://github.com/microsoft/TypeScript/issues/52152
 		bot.on("shardDisconnect", (event, shard) => {
-			logger.notify(`Shard ${shard} disconnected (${event.code},${event.wasClean}): ${event.reason}`);
+			logger.notify(`Shard ${shard} disconnected (${event.code})`);
 		});
 		bot.on("shardError", (error, shard) => logger.error(`Shard ${shard} error:`, error));
 		bot.on("guildCreate", guild => logger.notify(`Guild create: ${serialiseServer(guild)}`));
 		bot.on("guildDelete", guild => logger.notify(`Guild delete: ${serialiseServer(guild)}`));
 		bot.on("ready", () => {
 			logger.notify(`Logged in as ${bot.user?.tag} - ${bot.user?.id}`);
-			bot.user?.setActivity(process.env.BOT_PRESENCE || "<card name> to search!");
+			const state = process.env.BOT_PRESENCE || "🔎 <card name> to search!";
+			bot.user?.setActivity(state, { type: ActivityType.Custom });
 		});
 
 		bot.once("ready", () => {

@@ -1,4 +1,4 @@
-# Bastion [<img src="https://img.shields.io/static/v1?label=invite%20to&message=Discord&color=informational&style=for-the-badge" alt="Invite to Discord" align="right" />](https://discord.com/api/oauth2/authorize?client_id=383854640694820865&permissions=274878285888&scope=bot%20applications.commands)
+# Bastion [<img src="https://img.shields.io/badge/invite%20to-discord-brightgreen?style=for-the-badge" alt="Invite to Discord" align="right" />](https://discord.com/api/oauth2/authorize?client_id=383854640694820865&permissions=274878285888&scope=bot%20applications.commands)
 
 <!-- Unfortunately, GitHub Markdown sanitizes style attributes, so we will have to use a deprecated HTML attribute. -->
 [<img src="https://cdn.discordapp.com/avatars/383854640694820865/fab10204c193d0bc3d48169d11245a1a.png" alt="Bastion avatar" align="right" />](https://yugipedia.com/wiki/Bastion_Misawa)
@@ -14,6 +14,15 @@ For Slash Command documentation, look in [`docs/commands`](/docs/commands).
 For everything else, please refer to the old [Bastion Classic](https://github.com/AlphaKretin/bastion-bot) repository.
 
 Thanks to [YGOPRODECK](https://ygoprodeck.com/) for sponsoring Bastion. Prices provided by Bastion are YGOPRODECK affiliate links.
+
+[<img src="https://img.shields.io/badge/invite%20to-discord-brightgreen?style=for-the-badge" alt="Invite to Discord" />](https://discord.com/api/oauth2/authorize?client_id=383854640694820865&permissions=274878285888&scope=bot%20applications.commands)
+&nbsp;
+[<img src="https://img.shields.io/badge/App%20Directory-darkgreen?style=for-the-badge" alt="Discord App Directory" />](https://discord.com/application-directory/383854640694820865)
+
+[![Compile and test](https://github.com/DawnbrandBots/bastion-bot/actions/workflows/node.js.yml/badge.svg)](https://github.com/DawnbrandBots/bastion-bot/actions/workflows/node.js.yml)
+[![Build Docker image and deploy to Swarm](https://github.com/DawnbrandBots/bastion-bot/actions/workflows/docker.yml/badge.svg)](https://github.com/DawnbrandBots/bastion-bot/actions/workflows/docker.yml)
+[![Release to production (Compose)](https://github.com/DawnbrandBots/bastion-bot/actions/workflows/release-compose.yml/badge.svg)](https://github.com/DawnbrandBots/bastion-bot/actions/workflows/release-compose.yml)
+[![CodeQL](https://github.com/DawnbrandBots/bastion-bot/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/DawnbrandBots/bastion-bot/actions/workflows/codeql-analysis.yml)
 
 ## Discord permissions
 
@@ -44,7 +53,7 @@ or roles in question, but this will apply to all bots.
 ## Contributing
 
 Bastion is written in [TypeScript](https://www.typescriptlang.org/).
-It targets [Node.js](https://nodejs.org/) 16.6+ and
+It targets [Node.js](https://nodejs.org/) 18+ and
 can be run with or without [Docker](https://docs.docker.com/get-docker/).
 It uses [Discord.js](https://discord.js.org/) to talk to Discord.
 
@@ -63,7 +72,7 @@ See [PRIVACY.md](https://github.com/DawnbrandBots/bastion-bot/blob/master/PRIVAC
 
 ## Licence
 
-Copyright © 2021–2022 Luna Brand, Kevin Lu.
+Copyright © 2021–2023 Luna Brand, Kevin Lu.
 See [COPYING](https://github.com/DawnbrandBots/bastion-bot/blob/master/COPYING) for more details.
 
 ```

@@ -12,15 +12,15 @@ import {
 	RESTJSONErrorCodes
 } from "discord.js";
 import { Got } from "got";
-import { parserFor, ParserRules } from "simple-markdown";
+import { ParserRules, parserFor } from "simple-markdown";
 import { inject, injectable } from "tsyringe";
 import { c, t, useLocale } from "ttag";
 import { Listener } from ".";
 import { ABDeploy } from "../abdeploy";
 import { createCardEmbed, getCard } from "../card";
 import { EventLocker } from "../event-lock";
-import { Locale, LocaleProvider, LOCALES, LOCALES_MAP } from "../locale";
-import { getLogger, Logger } from "../logger";
+import { LOCALES, LOCALES_MAP, Locale, LocaleProvider } from "../locale";
+import { Logger, getLogger } from "../logger";
 import { RecentMessageCache } from "../message-cache";
 import { Metrics } from "../metrics";
 
@@ -47,7 +47,8 @@ const mentionPatterns = (
 const undocumentedPatterns = [
 	"<id:browse>", // "Browse Channels"
 	"<id:customize>", // "Customise Community"
-	"<id:home>" // links to community rules channel
+	"<id:home>", // links to community rules channel
+	"<id:guide>" // "Server Guide"
 ];
 
 export function cleanMessageMarkup(message: string): string {
@@ -106,7 +107,7 @@ export function parseSummons(cleanMessage: string, regex: RegExp): string[] {
 
 export function preprocess(
 	message: string,
-	delimiter: typeof DELIMITERS[keyof typeof DELIMITERS] = DELIMITERS.ANGLE
+	delimiter: (typeof DELIMITERS)[keyof typeof DELIMITERS] = DELIMITERS.ANGLE
 ): string[] {
 	message = cleanMessageMarkup(message);
 	if (delimiter.prune) {
@@ -217,7 +218,19 @@ export class SearchMessageListener implements Listener<"messageCreate"> {
 		private recentCache: RecentMessageCache,
 		private abdeploy: ABDeploy,
 		private eventLocks: EventLocker
-	) {}
+	) {
+		this.got = got.extend({
+			// Default got behaviour, with logging hooked in https://github.com/sindresorhus/got/tree/v11.8.6#retry
+			retry: {
+				limit: 2,
+				// retry immediately, but pass through 0 values that cancel the retry
+				calculateDelay: ({ attemptCount, error, computedValue }) => {
+					this.#logger.info(`Retry ${attemptCount} (${computedValue} ms): `, error);
+					return computedValue;
+				}
+			}
+		});
+	}
 
 	protected log(level: keyof Logger, message: Message, ...args: Parameters<Logger[keyof Logger]>): void {
 		const context = {
