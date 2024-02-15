@@ -15,9 +15,14 @@ export class BotFactory {
 	constructor(@injectAll("Listener") private listeners: Listener<any>[]) {}
 
 	createInstance(): Client {
+		Options.createDefault().shardCount;
 		const logger = getLogger("events");
 
+		const defaults = Options.createDefault();
 		const shard = parseInt(`${process.env.DISCORD_SHARD}`) - 1;
+		const shards =
+			`${process.env.DISCORD_TOTAL_SHARDS}` === "auto" ? "auto" : isNaN(shard) ? defaults.shards : shard;
+		const shardCount = parseInt(`${process.env.DISCORD_TOTAL_SHARDS}`) || defaults.shardCount;
 
 		const bot = new Client({
 			intents: [
@@ -32,8 +37,8 @@ export class BotFactory {
 				Partials.Channel, // for direct message events
 				Partials.Message // for message deletion events
 			],
-			shards: `${process.env.DISCORD_TOTAL_SHARDS}` === "auto" ? "auto" : isNaN(shard) ? undefined : shard,
-			shardCount: parseInt(`${process.env.DISCORD_TOTAL_SHARDS}`) || undefined,
+			shards,
+			shardCount,
 			makeCache: Options.cacheWithLimits({
 				GuildEmojiManager: 0,
 				GuildTextThreadManager: 0,
@@ -41,22 +46,25 @@ export class BotFactory {
 			})
 		});
 
+		const state = process.env.BOT_PRESENCE || "🔎 <card name> to search!";
+		function setActivity(): void {
+			bot.user?.setActivity(state, { type: ActivityType.Custom });
+		}
+
 		bot.on("warn", message => logger.warn(`Shard ${bot.shard}: ${message}`));
 		bot.on("error", message => logger.error(`Shard ${bot.shard}: ${message}`));
 		bot.on("shardReady", shard => logger.notify(`Shard ${shard} ready`));
 		bot.on("shardReconnecting", shard => logger.info(`Shard ${shard} reconnecting`));
 		bot.on("shardResume", (shard, replayed) => logger.info(`Shard ${shard} resumed: ${replayed} events replayed`));
-		// TODO: remove curly braces when updated to TS 5.0+: https://github.com/microsoft/TypeScript/issues/52152
-		bot.on("shardDisconnect", (event, shard) => {
-			logger.notify(`Shard ${shard} disconnected (${event.code})`);
-		});
+		bot.on("shardDisconnect", (event, shard) => logger.notify(`Shard ${shard} disconnected (${event.code})`));
 		bot.on("shardError", (error, shard) => logger.error(`Shard ${shard} error:`, error));
 		bot.on("guildCreate", guild => logger.notify(`Guild create: ${serialiseServer(guild)}`));
 		bot.on("guildDelete", guild => logger.notify(`Guild delete: ${serialiseServer(guild)}`));
 		bot.on("ready", () => {
 			logger.notify(`Logged in as ${bot.user?.tag} - ${bot.user?.id}`);
-			const state = process.env.BOT_PRESENCE || "🔎 <card name> to search!";
-			bot.user?.setActivity(state, { type: ActivityType.Custom });
+			// May get blanked by reconnections and other things, so reapply every hour
+			setActivity();
+			setInterval(setActivity, 1000 * 60 * 60);
 		});
 
 		bot.once("ready", () => {

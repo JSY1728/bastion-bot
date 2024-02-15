@@ -1,14 +1,11 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
 name: Compile and test
-
 on:
   push:
     branches: [master]
   pull_request:
     branches: [master]
-
+permissions:
+  security-events: write
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -21,19 +18,30 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: Install Node
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: yarn
       - run: yarn
       - run: yarn build
-      - run: yarn test
-      - name: Coveralls
-        uses: coverallsapp/github-action@master
+      - run: yarn test --verbose
+      - uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - uses: actions/checkout@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: yarn lint
+          repository: xyj-3/sarif-js-sdk
+          ref: e23ca2d8dc6d70a7959a2098eba8ac332de907bb
+          path: sarif-js-sdk
+      - name: Install ESLint formatter
+        run: yarn add file:sarif-js-sdk/packages/eslint-formatter-sarif
+      - name: Run ESLint with formatter
+        run: yarn lint --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif
+      - name: Upload ESLint result to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: eslint-results.sarif
+          wait-for-processing: true

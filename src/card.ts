@@ -5,6 +5,7 @@ import { parseDocument } from "htmlparser2";
 import { c, t, useLocale } from "ttag";
 import { CardSchema, OCGLimitRegulation, SpeedLimitRegulation } from "./definitions";
 import { RushCardSchema } from "./definitions/rush";
+import { UpdatingLimitRegulationVector } from "./limit-regulation";
 import { Locale, LocaleProvider } from "./locale";
 
 /**
@@ -254,6 +255,16 @@ function formatSpeedLimitRegulation(value: SpeedLimitRegulation | null | undefin
 	return null;
 }
 
+function getMasterDuelLimitRegulation(
+	card: Static<typeof CardSchema>,
+	masterDuelLimitRegulation?: UpdatingLimitRegulationVector
+): number | null {
+	if (!card.master_duel_rarity || !masterDuelLimitRegulation || !card.konami_id) {
+		return null;
+	}
+	return masterDuelLimitRegulation.get(card.konami_id) ?? 3;
+}
+
 export function parseAndExpandRuby(html: string): [string, string] {
 	let rubyless = "";
 	let rubyonly = "";
@@ -288,6 +299,14 @@ export function formatCardName(card: Static<typeof CardSchema> | Static<typeof R
 		return `${rubyless}（${rubyonly}）`;
 	}
 	return name || `${card.name.en}`;
+}
+
+export function getRubylessCardName(name: string | null | undefined, lang: Locale): string | null | undefined {
+	if ((lang === "ja" || lang === "ko") && name?.includes("<ruby>")) {
+		const [rubyless] = parseAndExpandRuby(name);
+		return rubyless;
+	}
+	return name;
 }
 
 function formatOCGNumbering(text: string): string {
@@ -344,7 +363,11 @@ export function ygoprodeckCard(term: string | number): string {
 	return `https://ygoprodeck.com/card/?search=${encodeURIComponent(term)}&utm_source=bastion`;
 }
 
-export function createCardEmbed(card: Static<typeof CardSchema>, lang: Locale): EmbedBuilder[] {
+export function createCardEmbed(
+	card: Static<typeof CardSchema>,
+	lang: Locale,
+	masterDuelLimitRegulation?: UpdatingLimitRegulationVector
+): EmbedBuilder[] {
 	useLocale(lang);
 
 	const yugipediaPage = card.konami_id ?? encodeURIComponent(`${card.name.en}`);
@@ -382,12 +405,13 @@ export function createCardEmbed(card: Static<typeof CardSchema>, lang: Locale): 
 	const limitRegulations = [
 		{ label: "TCG: ", value: formatOCGLimitRegulation(card.limit_regulation.tcg) },
 		{ label: "OCG: ", value: formatOCGLimitRegulation(card.limit_regulation.ocg) },
-		{ label: "Speed: ", value: formatSpeedLimitRegulation(card.limit_regulation.speed) }
+		{ label: "Speed: ", value: formatSpeedLimitRegulation(card.limit_regulation.speed) },
+		{ label: "MD: ", value: getMasterDuelLimitRegulation(card, masterDuelLimitRegulation) }
 	];
 	let limitRegulationDisplay: string;
 	if (["ja", "ko", "zh-CN", "zh-TW"].includes(lang)) {
 		// Switch order and exclude TCG Speed
-		limitRegulationDisplay = [limitRegulations[1], limitRegulations[0]]
+		limitRegulationDisplay = [limitRegulations[1], limitRegulations[0], limitRegulations[3]]
 			.filter(({ value }) => value !== null)
 			.map(({ label, value }) => `${label}${value}`)
 			.join(" / ");

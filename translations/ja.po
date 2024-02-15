@@ -366,15 +366,27 @@ msgid ""
 "\n"
 "💬 Translations missing? Help translate Bastion on [GitHub](https://github.com/DawnbrandBots/bastion-bot)."
 msgstr ""
+"❓ 使い方は[GitHub](https://github.com/DawnbrandBots/bastion-bot)か、`.commands`か`.help`のコマンドを使って見てください。\n"
+"🟢 ライセンス: [GNU AGPL 3.0+](https://choosealicense.com/licenses/agpl-3.0/).\n"
+"🪧 このボットのオリジナル名であるBastion Misawa は[Yu-Gi-Oh! GX](https://yugipedia.com/wiki/Bastion_Misawa)の「三沢大地」の英語名です。\n"
+"<:PRO:1028300625122963567> このボットは[YGOPRODECK](https://ygoprodeck.com)によって提供されています。価格情報はYGOPRODECKへのアフィリエイトリンクです。\n"
+"\n"
+"<:patreon:895892186841890816> このボットを稼働させ続けるために[Patreonで](https://www.patreon.com/alphakretinbots)サポートしてくれるとうれしいです。\n"
+"<:kofi:927373724959789096> Ko-fiでは[一度限りの寄付](https://ko-fi.com/dawnbrandbots)を行うこともできます。\n"
+"\n"
+"🛠️ 随時改良が行われ適用されています。新しい検索体験がここにある。\n"
+"🤖 スラッシュコマンドのような新しい機能は新しいボットインスタンスと同時に古いボットでも取り扱いがあります。\n"
+"\n"
+"💬 翻訳がされていない場所がありますか? [GitHub](https://github.com/DawnbrandBots/bastion-bot)で翻訳を手伝ってくれると嬉しいです！"
 
 #: src\events\message-search.ts:292
 msgid "Search type: ${ localisedType }"
-msgstr ""
+msgstr "検索タイプ: ${ localisedType }"
 
 #: src\events\message-search.ts:289
 #, javascript-format
 msgid "Search language: **${ localisedInputLanguage }** (${ inputLanguage }). Check defaults with </locale get:${ id }> and configure with </locale set:${ id }>"
-msgstr ""
+msgstr "検索言語: **${ localisedInputLanguage }** (${ inputLanguage })。</locale get:${ id }>で言語設定のデフォルトを確認し、</locale set:${ id }>で設定できます。"
 
 #: src\events\message-ping.ts:91
 msgid "⚠️ You pinged me, but I am missing permissions in the channel!"
@@ -427,7 +439,7 @@ msgstr ""
 
 #: src\commands\rush-duel.ts:78
 msgid "__**LEGEND**__"
-msgstr ""
+msgstr "__**レジェンド**__"
 
 #: src\commands\rush-duel.ts:114
 msgid "**MAXIMUM ATK**: ${ card.maximum_atk }"
@@ -451,7 +463,7 @@ msgstr "`${ input }`のイラストが見つかりませんでした！"
 #: src\card.ts:409
 #, javascript-format
 msgid "**Master Duel rarity**: ${ rarity_icon } ${ localized_rarity }"
-msgstr ""
+msgstr "**マスターデュエルレアリティ**: ${ rarity_icon } ${ localized_rarity }"
 
 #: src\card.ts:38
 msgctxt "monster-type-race"
@@ -985,7 +997,7 @@ msgstr "カード情報の表示言語を設定します。デフォルトの設
 #: src\locale.ts:132
 msgctxt "command-option-description"
 msgid "The language to search in, defaulting to the result language."
-msgstr ""
+msgstr "検索ワードが何語かを指定できます。デフォルトの設定は出力言語と同じです。"
 
 #: src\commands\help.ts:55
 msgctxt "command-option-description"
