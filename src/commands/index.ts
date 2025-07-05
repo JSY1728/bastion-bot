@@ -1,11 +1,14 @@
 import { REST } from "@discordjs/rest";
 import { APIUser, Routes } from "discord-api-types/v10";
+import { ApplicationIntegrationType } from "discord.js";
 import { ArtCommand } from "./art";
 import { DeckCommand } from "./deck";
 import { HelpCommand } from "./help";
 import { IdCommand } from "./id";
 import { LinkCommand } from "./link";
 import { LocaleCommand } from "./locale";
+import { LocaleUserCommand } from "./locale-user";
+import { MetagameCommand } from "./metagame";
 import { PingCommand } from "./ping";
 import { PriceCommand } from "./price";
 import { QueryCommand } from "./query";
@@ -15,7 +18,8 @@ import { SearchCommand } from "./search";
 import { YGOPRODECKCommand } from "./ygoprodeck";
 import { YugiCommand } from "./yugipedia";
 
-const productionCommandClasses = [
+// Exported only for unit tests
+export const productionCommandClasses = [
 	DeckCommand,
 	PingCommand,
 	LinkCommand,
@@ -24,13 +28,15 @@ const productionCommandClasses = [
 	SearchCommand,
 	YGOPRODECKCommand,
 	LocaleCommand,
+	LocaleUserCommand,
 	ArtCommand,
 	RandomCommand,
 	HelpCommand,
 	PriceCommand,
-	RushDuelCommand
+	RushDuelCommand,
+	MetagameCommand
 ];
-const previewCommandClasses = [QueryCommand];
+export const previewCommandClasses = [QueryCommand];
 
 export const classes = [
 	...productionCommandClasses,
@@ -44,6 +50,8 @@ export {
 	IdCommand,
 	LinkCommand,
 	LocaleCommand,
+	LocaleUserCommand,
+	MetagameCommand,
 	PingCommand,
 	PriceCommand,
 	QueryCommand,
@@ -57,9 +65,16 @@ export {
 // Register Slash Commands on CI
 // Specify the guild snowflake to instantly deploy commands on the specified server.
 // Otherwise, global commands can take up to an hour to roll out.
-export async function registerSlashCommands(guild?: `${bigint}`): Promise<void> {
-	// Duplicate command metadata if they register any aliases
-	const commands = classes.map(command => command.meta);
+export async function registerSlashCommands(guild?: `${bigint}` | "user-install"): Promise<void> {
+	const commands =
+		guild === "user-install"
+			? classes
+					.filter(command => command.meta.integration_types)
+					.map(command => ({
+						...command.meta,
+						integration_types: [ApplicationIntegrationType.UserInstall]
+					}))
+			: classes.map(command => command.meta);
 	console.log("Generated command metadata:");
 	console.log(JSON.stringify(commands, null, 4));
 
@@ -71,7 +86,7 @@ export async function registerSlashCommands(guild?: `${bigint}`): Promise<void> 
 	console.log(`${botUser.username}#${botUser.discriminator}`);
 
 	const created = await api.put(
-		guild === undefined
+		guild === undefined || guild === "user-install"
 			? Routes.applicationCommands(botUser.id)
 			: Routes.applicationGuildCommands(botUser.id, guild),
 		{ body: commands }

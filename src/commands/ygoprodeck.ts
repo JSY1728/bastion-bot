@@ -1,13 +1,13 @@
-import { SlashCommandBuilder, SlashCommandStringOption } from "@discordjs/builders";
+import { SlashCommandStringOption } from "@discordjs/builders";
 import { RESTPostAPIApplicationCommandsJSONBody } from "discord-api-types/v10";
 import { AutocompleteInteraction, ChatInputCommandInteraction, escapeMarkdown } from "discord.js";
-import { Got } from "got";
+import { Got, TimeoutError } from "got";
 import { LRUMap } from "mnemonist";
 import { inject, injectable } from "tsyringe";
 import { c, t, useLocale } from "ttag";
 import { ygoprodeckCard } from "../card";
 import { AutocompletableCommand } from "../Command";
-import { buildLocalisedCommand, LocaleProvider } from "../locale";
+import { buildLocalisedCommand, everywhereCommand, LocaleProvider } from "../locale";
 import { getLogger, Logger } from "../logger";
 import { Metrics } from "../metrics";
 import { replyLatency, serialiseInteraction } from "../utils";
@@ -30,7 +30,7 @@ export class YGOPRODECKCommand extends AutocompletableCommand {
 
 	static override get meta(): RESTPostAPIApplicationCommandsJSONBody {
 		const builder = buildLocalisedCommand(
-			new SlashCommandBuilder(),
+			everywhereCommand(),
 			() => c("command-name").t`ygoprodeck`,
 			() => c("command-description").t`Search the YGOPRODECK card database.`
 		);
@@ -88,18 +88,26 @@ export class YGOPRODECKCommand extends AutocompletableCommand {
 			content = ygoprodeckCard(cached);
 			this.#logger.info(serialiseInteraction(interaction, { term, cached }));
 		} else {
+			const searchURL = `<https://ygoprodeck.com/card-database/?name=${encodeURIComponent(term)}>`;
 			try {
 				const start = Date.now();
 				const response = await this.search(term);
 				const latency = Date.now() - start;
 				this.#logger.info(serialiseInteraction(interaction, { term, latency, response }));
-				content = "suggestions" in response ? ygoprodeckCard(response.suggestions[0]?.data) : response.error;
+				content =
+					"suggestions" in response
+						? ygoprodeckCard(response.suggestions[0]?.data)
+						: `${response.error}\n${searchURL}`;
 			} catch (error) {
 				this.#logger.warn(serialiseInteraction(interaction, { term }), error);
 				const lang = await this.locales.get(interaction);
 				useLocale(lang);
 				const searchTerm = escapeMarkdown(term);
-				content = t`Something went wrong searching YGOPRODECK for \`${searchTerm}\`.`;
+				if (error instanceof TimeoutError) {
+					content = t`Took too long [searching YGOPRODECK for \`${searchTerm}\`](${searchURL}). Is the site up?`;
+				} else {
+					content = t`Something went wrong [searching YGOPRODECK for \`${searchTerm}\`](${searchURL}). Is the site up?`;
+				}
 			}
 		}
 		const reply = await interaction.reply({ content, fetchReply: true });

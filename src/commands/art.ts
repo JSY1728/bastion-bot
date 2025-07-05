@@ -1,16 +1,15 @@
-import { SlashCommandBuilder } from "@discordjs/builders";
-import { Static } from "@sinclair/typebox";
 import { RESTPostAPIApplicationCommandsJSONBody } from "discord-api-types/v10";
 import { ChatInputCommandInteraction } from "discord.js";
 import { Got } from "got";
 import { inject, injectable } from "tsyringe";
 import { c, t, useLocale } from "ttag";
 import { Command } from "../Command";
-import { getCard, getCardSearchOptions, getRubylessCardName } from "../card";
-import { CardSchema } from "../definitions";
+import { ArtSwitcher } from "../art";
+import { getCard, getCardSearchOptions, getRubylessCardName, masterDuelIllustration } from "../card";
 import {
 	LocaleProvider,
 	buildLocalisedCommand,
+	everywhereCommand,
 	getKonamiIdSubcommand,
 	getNameSubcommand,
 	getPasswordSubcommand
@@ -33,7 +32,7 @@ export class ArtCommand extends Command {
 
 	static override get meta(): RESTPostAPIApplicationCommandsJSONBody {
 		const builder = buildLocalisedCommand(
-			new SlashCommandBuilder(),
+			everywhereCommand(),
 			() => c("command-name").t`art`,
 			() => c("command-description").t`Display the art for a card!`
 		);
@@ -54,37 +53,31 @@ export class ArtCommand extends Command {
 		return this.#logger;
 	}
 
-	async getArt(card: Static<typeof CardSchema>): Promise<string | undefined> {
-		const artUrl = `${process.env.IMAGE_HOST}/${card.password}.png`;
-		const response = await this.got.head(artUrl);
-		return response.statusCode === 200 ? artUrl : undefined;
-	}
-
 	protected override async execute(interaction: ChatInputCommandInteraction): Promise<number> {
 		const { type, input, resultLanguage, inputLanguage } = await getCardSearchOptions(interaction, this.locales);
 		const card = await getCard(this.got, type, input, inputLanguage);
+		let reply;
 		if (!card) {
 			useLocale(resultLanguage);
-			const reply = await interaction.reply({
+			reply = await interaction.reply({
 				content: t`Could not find a card matching \`${input}\`!`,
 				fetchReply: true
 			});
-			return replyLatency(reply, interaction);
+		} else if (!card.images) {
+			const name = getRubylessCardName(card.name[resultLanguage] || `${card.konami_id}`, resultLanguage);
+			useLocale(resultLanguage);
+			reply = await interaction.reply({
+				content: t`Could not find art for \`${name}\`!`,
+				fetchReply: true
+			});
 		} else {
-			await interaction.deferReply();
-			const artUrl = await this.getArt(card);
-			const end = Date.now();
-			if (artUrl) {
-				// expected embedding of image from URL
-				await interaction.editReply(artUrl); // Actually returns void
-			} else {
-				const name = getRubylessCardName(card.name[resultLanguage] || `${card.konami_id}`, resultLanguage);
-				useLocale(resultLanguage);
-				await interaction.editReply({ content: t`Could not find art for \`${name}\`!` });
+			// Avoid the latency of checking a wiki redirect on every command
+			if (card.master_duel_rarity && !card.images[0].illustration) {
+				card.images[0].illustration = masterDuelIllustration(card);
 			}
-			// When using deferReply, editedTimestamp is null, as if the reply was never edited, so provide a best estimate
-			const latency = end - interaction.createdTimestamp;
-			return latency;
+			const switcher = new ArtSwitcher(card.images, "art");
+			reply = await switcher.send(interaction, "reply", resultLanguage);
 		}
+		return replyLatency(reply, interaction);
 	}
 }

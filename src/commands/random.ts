@@ -1,4 +1,3 @@
-import { SlashCommandBuilder } from "@discordjs/builders";
 import { Static } from "@sinclair/typebox";
 import { RESTPostAPIApplicationCommandsJSONBody } from "discord-api-types/v10";
 import { ChatInputCommandInteraction } from "discord.js";
@@ -9,9 +8,10 @@ import { Command } from "../Command";
 import { createCardEmbed } from "../card";
 import { CardSchema } from "../definitions";
 import { UpdatingLimitRegulationVector } from "../limit-regulation";
-import { LocaleProvider, buildLocalisedCommand, getResultLangStringOption } from "../locale";
+import { LocaleProvider, buildLocalisedCommand, everywhereCommand, getResultLangStringOption } from "../locale";
 import { Logger, getLogger } from "../logger";
 import { Metrics } from "../metrics";
+import { shouldExcludeIcons } from "../utils";
 
 @injectable()
 export class RandomCommand extends Command {
@@ -40,7 +40,7 @@ export class RandomCommand extends Command {
 
 	static override get meta(): RESTPostAPIApplicationCommandsJSONBody {
 		return buildLocalisedCommand(
-			new SlashCommandBuilder(),
+			everywhereCommand(),
 			() => c("command-name").t`random`,
 			() => c("command-description").t`Get a random Yu-Gi-Oh! card.`
 		)
@@ -57,7 +57,7 @@ export class RandomCommand extends Command {
 		const url = `${process.env.API_URL}/ocg-tcg/random`;
 		const cards = await this.got(url).json<Static<typeof CardSchema>[]>();
 		const lang = await this.locales.get(interaction);
-		const embeds = createCardEmbed(cards[0], lang, this.masterDuelLimitRegulation);
+		const embeds = createCardEmbed(cards[0], lang, this.masterDuelLimitRegulation, shouldExcludeIcons(interaction));
 		const end = Date.now();
 		await interaction.editReply({ embeds }); // Actually returns void
 		// When using deferReply, editedTimestamp is null, as if the reply was never edited, so provide a best estimate

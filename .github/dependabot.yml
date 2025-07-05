@@ -1,14 +1,34 @@
 version: 2
 updates:
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-  - package-ecosystem: docker
-    directory: /
-    schedule:
-      interval: weekly
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+      day: sunday
+      time: "12:00"
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: sunday
+      time: "12:00"
+    allow:
+      - dependency-type: all
+    groups:
+      discord.js:
+        patterns:
+          - discord.js
+          - discord-api-types
+          - "@discordjs/*"
+          - "@sapphire/*"
+      production:
+        dependency-type: production
+      all:
+        patterns:
+          - "*"
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: sunday
+      time: "12:00"

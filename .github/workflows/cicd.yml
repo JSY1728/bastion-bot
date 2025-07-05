@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: © 2024 Kevin Lu
+# SPDX-Licence-Identifier: AGPL-3.0-or-later
+name: Continuous integration and deployment
+on:
+  push:
+    branches: [master]
+jobs:
+  node-js:
+    uses: ./.github/workflows/node.js.yml
+    secrets: inherit
+    name: Compile and test
+  docker:
+    needs: node-js
+    uses: ./.github/workflows/docker.yml
+    secrets: inherit
+    name: Build Docker image and deploy to preview
+  test:
+    needs: docker
+    if: github.ref == 'refs/heads/master'
+    uses: ./.github/workflows/node.js.integration.yml
+    secrets: inherit
+    name: Integration tests
+  release:
+    needs: test
+    if: github.ref == 'refs/heads/master'
+    uses: ./.github/workflows/release-compose.yml
+    secrets: inherit
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    name: Release to production (Compose)

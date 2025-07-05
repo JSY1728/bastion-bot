@@ -1,12 +1,12 @@
-import { SlashCommandBuilder, SlashCommandStringOption } from "@discordjs/builders";
+import { SlashCommandStringOption } from "@discordjs/builders";
 import { RESTPostAPIApplicationCommandsJSONBody } from "discord-api-types/v10";
 import { AutocompleteInteraction, ChatInputCommandInteraction } from "discord.js";
-import { Got } from "got";
+import { Got, TimeoutError } from "got";
 import { LRUMap } from "mnemonist";
 import { inject, injectable } from "tsyringe";
 import { c, t, useLocale } from "ttag";
 import { AutocompletableCommand } from "../Command";
-import { buildLocalisedCommand, LocaleProvider } from "../locale";
+import { buildLocalisedCommand, everywhereCommand, LocaleProvider } from "../locale";
 import { getLogger, Logger } from "../logger";
 import { Metrics } from "../metrics";
 import { replyLatency, serialiseInteraction } from "../utils";
@@ -29,7 +29,7 @@ export class YugiCommand extends AutocompletableCommand {
 
 	static override get meta(): RESTPostAPIApplicationCommandsJSONBody {
 		const builder = buildLocalisedCommand(
-			new SlashCommandBuilder(),
+			everywhereCommand(),
 			() => c("command-name").t`yugipedia`,
 			() => c("command-description").t`Search the Yugipedia wiki for a page and link to it.`
 		);
@@ -53,10 +53,14 @@ export class YugiCommand extends AutocompletableCommand {
 
 	private async search(query: string): Promise<YugipediaResponse> {
 		const url = YugiCommand.YUGI_SEARCH + encodeURIComponent(query);
-		return await this.got(url, {
+		const response = await this.got(url, {
 			headers: { Accept: "application/json" },
 			throwHttpErrors: true
 		}).json<YugipediaResponse>();
+		if (Array.isArray(response)) {
+			return response;
+		}
+		throw new Error(`Unexpected MediaWiki response from [${url}]: ${response}`);
 	}
 
 	override async autocomplete(interaction: AutocompleteInteraction): Promise<void> {
@@ -96,6 +100,7 @@ export class YugiCommand extends AutocompletableCommand {
 			content = cached;
 			this.#logger.info(serialiseInteraction(interaction, { page, cached }));
 		} else {
+			const searchURL = `<https://yugipedia.com/index.php?search=${encodeURIComponent(page)}>`;
 			try {
 				const start = Date.now();
 				const response = await this.search(page);
@@ -103,11 +108,15 @@ export class YugiCommand extends AutocompletableCommand {
 				this.#logger.info(serialiseInteraction(interaction, { page, latency, response }));
 				useLocale(lang);
 				const link = response[3][0];
-				content = link || t`Could not find a Yugipedia page named \`${page}\`.`;
+				content = link || t`Could not find a [Yugipedia page named \`${page}\`](${searchURL}).`;
 			} catch (error) {
 				this.#logger.warn(serialiseInteraction(interaction, { page }), error);
 				useLocale(lang);
-				content = t`Something went wrong searching Yugipedia for \`${page}\`.`;
+				if (error instanceof TimeoutError) {
+					content = t`Took too long [searching Yugipedia for \`${page}\`](${searchURL}). Is the site up?`;
+				} else {
+					content = t`Something went wrong [searching Yugipedia for \`${page}\`](${searchURL}). Is the site up?`;
+				}
 			}
 		}
 		const reply = await interaction.reply({ content, fetchReply: true });

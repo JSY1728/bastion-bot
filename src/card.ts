@@ -6,6 +6,7 @@ import { c, t, useLocale } from "ttag";
 import { CardSchema, OCGLimitRegulation, SpeedLimitRegulation } from "./definitions";
 import { RushCardSchema } from "./definitions/rush";
 import { UpdatingLimitRegulationVector } from "./limit-regulation";
+import { linkArrowsEmoji } from "./link-arrows";
 import { Locale, LocaleProvider } from "./locale";
 
 /**
@@ -97,7 +98,7 @@ export const RaceIcon = {
 	[c("monster-type-race").t`Creator God`]: "<:CreatorGod:602707927219961866>",
 	[c("monster-type-race").t`Wyrm`]: "<:Wyrm:602707927068835884>",
 	[c("monster-type-race").t`Cyberse`]: "<:Cyberse:602707927421157376>",
-	[c("monster-type-race").t`Illusion`]: null,
+	[c("monster-type-race").t`Illusion`]: "<:Illusion:1227080132280324096>",
 	// Exclusive to Rush Duel
 	[c("monster-type-race").t`Galaxy`]: null,
 	// Rush Duel Fusion
@@ -363,10 +364,39 @@ export function ygoprodeckCard(term: string | number): string {
 	return `https://ygoprodeck.com/card/?search=${encodeURIComponent(term)}&utm_source=bastion`;
 }
 
+/**
+ * @param name URL-encoded file name
+ * @returns Bastion-attributed MediaWiki redirect useful for embedding images
+ */
+export function yugipediaFileRedirect(name: string): string {
+	return `https://yugipedia.com/wiki/Special:Redirect/file/${name}?utm_source=bastion`;
+}
+
+export function masterDuelIllustration(card: Static<typeof CardSchema>): string {
+	// Filter card name down to alphanumeric characters
+	const probableBasename = (card.name.en ?? "").replaceAll(/\W/g, "");
+	return `${probableBasename}-MADU-EN-VG-artwork.png`;
+}
+
+export function masterDuelIllustrationURL(card: Static<typeof CardSchema>): string {
+	return yugipediaFileRedirect(masterDuelIllustration(card));
+}
+
+export function thumbnail(card: Static<typeof CardSchema>): string | null {
+	if (card.master_duel_rarity) {
+		return masterDuelIllustrationURL(card);
+	}
+	if (card.images?.length) {
+		return yugipediaFileRedirect(card.images[0].illustration ?? card.images[0].image);
+	}
+	return null;
+}
+
 export function createCardEmbed(
 	card: Static<typeof CardSchema>,
 	lang: Locale,
-	masterDuelLimitRegulation?: UpdatingLimitRegulationVector
+	masterDuelLimitRegulation?: UpdatingLimitRegulationVector,
+	excludeIcons = false
 ): EmbedBuilder[] {
 	useLocale(lang);
 
@@ -378,11 +408,6 @@ export function createCardEmbed(
 	const official = `https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&request_locale=${lang}&cid=${card.konami_id}`;
 	const rulings = `https://www.db.yugioh-card.com/yugiohdb/faq_search.action?ope=4&request_locale=ja&cid=${card.konami_id}`;
 
-	const embed = new EmbedBuilder()
-		.setTitle(formatCardName(card, lang))
-		.setURL(ygoprodeck)
-		.setThumbnail(`${process.env.IMAGE_HOST}/${card.password}.png`);
-
 	const links = {
 		name: t`🔗 Links`,
 		value: t`[Official Konami DB](${official}) | [OCG Rulings](${rulings}) | [Yugipedia](${yugipedia}) | [YGOPRODECK](${ygoprodeck})`
@@ -391,15 +416,31 @@ export function createCardEmbed(
 		links.value = t`[Yugipedia](${yugipedia}) | [YGOPRODECK](${ygoprodeck})`;
 	}
 
+	const embed = new EmbedBuilder().setURL(ygoprodeck).setThumbnail(thumbnail(card));
 	let description = "";
-	if (lang === "ja") {
-		if (card.name.ja_romaji) {
-			description = `**Rōmaji**: ${card.name.ja_romaji}\n`;
-		}
-	} else if (lang === "ko") {
-		if (card.name.ko_rr) {
-			description = `**RR**: ${card.name.ko_rr}\n`;
-		}
+
+	const name = card.name[lang];
+	if ((lang === "ja" || lang === "ko") && name?.includes("<ruby>")) {
+		const [rubyless, rubyonly] = parseAndExpandRuby(name);
+		description += `-# ${rubyonly}\n**[${rubyless}](${ygoprodeck})**\n\n`;
+	} else {
+		embed.setTitle(name || `${card.name.en}`);
+	}
+
+	let unofficial_disclaimer = "";
+	if (card.is_translation_unofficial?.name?.[lang]) {
+		unofficial_disclaimer = t`_Unofficial name._ `;
+	}
+	if (card.is_translation_unofficial?.text?.[lang]) {
+		unofficial_disclaimer += t`_Unofficial text._`;
+	}
+	if (unofficial_disclaimer) {
+		description += unofficial_disclaimer;
+		description += "\n";
+	}
+
+	if (lang === "ja" && card.name.ja_romaji) {
+		description += `**Rōmaji**: ${card.name.ja_romaji}\n`;
 	}
 
 	const limitRegulations = [
@@ -428,9 +469,9 @@ export function createCardEmbed(
 	}
 
 	if (card.master_duel_rarity) {
-		const rarity_icon = MasterDuelRarityIcon[card.master_duel_rarity];
-		const localized_rarity = MasterDuelRarityLocalization[card.master_duel_rarity]();
-		description += t`**Master Duel rarity**: ${rarity_icon} ${localized_rarity}`;
+		const rarityIcon = excludeIcons ? "" : MasterDuelRarityIcon[card.master_duel_rarity];
+		const localizedRarity = MasterDuelRarityLocalization[card.master_duel_rarity]();
+		description += t`**Master Duel rarity**: ${rarityIcon} ${localizedRarity}`;
 		description += "\n";
 	}
 
@@ -451,29 +492,33 @@ export function createCardEmbed(
 		);
 
 		const race = card.monster_type_line.split(" /")[0];
-		const raceIcon = RaceIcon[race] || "";
+		const raceIcon = excludeIcons ? "" : RaceIcon[race] || "";
 		const localizedMonsterTypeLine = card.monster_type_line
 			.split(" / ")
 			.map(s => rc("monster-type-race").gettext(s))
 			.join(" / ");
+		const attributeIcon = excludeIcons ? "" : AttributeIcon[card.attribute];
 		const localizedAttribute = rc("attribute").gettext(card.attribute);
 		description += t`**Type**: ${raceIcon} ${localizedMonsterTypeLine}`;
 		description += "\n";
-		description += t`**Attribute**: ${AttributeIcon[card.attribute]} ${localizedAttribute}`;
+		description += t`**Attribute**: ${attributeIcon} ${localizedAttribute}`;
 		description += "\n";
 
 		if ("rank" in card) {
-			description += t`**Rank**: ${Icon.Rank} ${card.rank} **ATK**: ${card.atk} **DEF**: ${card.def}`;
+			const rankIcon = excludeIcons ? "" : Icon.Rank;
+			description += t`**Rank**: ${rankIcon} ${card.rank} **ATK**: ${card.atk} **DEF**: ${card.def}`;
 		} else if ("link_arrows" in card) {
-			const arrows = card.link_arrows.join("");
+			const arrows = (excludeIcons ? "" : linkArrowsEmoji(card.link_arrows)) + card.link_arrows.join("");
 			description += t`**Link Rating**: ${card.link_arrows.length} **ATK**: ${card.atk} **Link Arrows**: ${arrows}`;
 		} else {
-			description += t`**Level**: ${Icon.Level} ${card.level} **ATK**: ${card.atk} **DEF**: ${card.def}`;
+			const levelIcon = excludeIcons ? "" : Icon.Level;
+			description += t`**Level**: ${levelIcon} ${card.level} **ATK**: ${card.atk} **DEF**: ${card.def}`;
 		}
 
 		if (card.pendulum_scale !== undefined) {
-			// https://github.com/ttag-org/ttag/issues/249
-			const formattedScale = `${Icon.LeftScale}${card.pendulum_scale}/${card.pendulum_scale}${Icon.RightScale}`;
+			const formattedScale = excludeIcons
+				? card.pendulum_scale
+				: `${Icon.LeftScale}${card.pendulum_scale}/${card.pendulum_scale}${Icon.RightScale}`;
 			description += " ";
 			description += t`**Pendulum Scale**: ${formattedScale}`;
 		}
@@ -504,8 +549,10 @@ export function createCardEmbed(
 		embed.setColor(Colour[card.card_type]);
 
 		description += "\n"; // don't put \n in a gettext string
+		const cardTypeIcon = excludeIcons ? "" : Icon[card.card_type];
 		const localizedProperty = rc("spell-trap-property").gettext(`${card.property} ${card.card_type}`);
-		embed.setDescription(`${description}${Icon[card.card_type]} ${localizedProperty} ${Icon[card.property]}`);
+		const propertyIcon = excludeIcons ? "" : Icon[card.property];
+		embed.setDescription(`${description}${cardTypeIcon} ${localizedProperty} ${propertyIcon}`);
 
 		embed.addFields({ name: c("card-embed").t`Card Effect`, value: formatCardText(card.text, lang) });
 	}

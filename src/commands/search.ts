@@ -1,4 +1,3 @@
-import { SlashCommandBuilder } from "@discordjs/builders";
 import { RESTPostAPIApplicationCommandsJSONBody } from "discord-api-types/v10";
 import { ChatInputCommandInteraction } from "discord.js";
 import { Got } from "got";
@@ -10,6 +9,7 @@ import { UpdatingLimitRegulationVector } from "../limit-regulation";
 import {
 	LocaleProvider,
 	buildLocalisedCommand,
+	everywhereCommand,
 	getKonamiIdSubcommand,
 	getNameSubcommand,
 	getPasswordSubcommand,
@@ -17,7 +17,7 @@ import {
 } from "../locale";
 import { Logger, getLogger } from "../logger";
 import { Metrics } from "../metrics";
-import { replyLatency } from "../utils";
+import { replyLatency, shouldExcludeIcons } from "../utils";
 
 @injectable()
 export class SearchCommand extends Command {
@@ -34,7 +34,7 @@ export class SearchCommand extends Command {
 
 	static override get meta(): RESTPostAPIApplicationCommandsJSONBody {
 		const builder = buildLocalisedCommand(
-			new SlashCommandBuilder(),
+			everywhereCommand(),
 			() => c("command-name").t`search`,
 			() => c("command-description").t`Find all information on a card!`
 		);
@@ -63,7 +63,12 @@ export class SearchCommand extends Command {
 			useLocale(resultLanguage);
 			replyOptions = { content: t`Could not find a card matching \`${input}\`!` };
 		} else {
-			const embeds = createCardEmbed(card, resultLanguage, this.masterDuelLimitRegulation);
+			const embeds = createCardEmbed(
+				card,
+				resultLanguage,
+				this.masterDuelLimitRegulation,
+				shouldExcludeIcons(interaction)
+			);
 			replyOptions = { embeds };
 		}
 		const reply = await interaction.reply({ ...replyOptions, fetchReply: true });

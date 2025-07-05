@@ -1,4 +1,4 @@
-import { Message } from "discord.js";
+import { Collection, Message } from "discord.js";
 import { PingMessageListener } from "../../../src/events";
 import { Locale, LocaleProvider } from "../../../src/locale";
 
@@ -16,12 +16,22 @@ class MockLocaleProvider extends LocaleProvider {
 	async channel(id: string): Promise<Locale | null> {
 		return "en";
 	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	async user(id: string): Promise<Locale | null> {
+		return "en";
+	}
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	setForGuild(id: string, set: Locale | null): Promise<void> {
 		throw new Error("Method not implemented.");
 	}
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	setForChannel(id: string, set: Locale | null): Promise<void> {
+		throw new Error("Method not implemented.");
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	setForUser(id: string, set: Locale | null): Promise<void> {
 		throw new Error("Method not implemented.");
 	}
 }
@@ -31,12 +41,13 @@ describe("Message event listener", () => {
 	jest.spyOn(eventLocks, "has").mockImplementation(() => true);
 	const listener = new PingMessageListener(new MockLocaleProvider(), eventLocks);
 
-	let message: Message;
-	const user = {};
+	// Excluding DMs for this typing because it includes PartialGroupDMChannel and screws up type inference for reply
+	let message: Message<true>;
+	const user = { id: "383854640694820865" };
 	beforeEach(() => {
 		message = new MockMessage();
 		Object.defineProperty(message, "channel", { value: { id: "0" } });
-		Object.defineProperty(message, "author", { value: { bot: false } });
+		Object.defineProperty(message, "author", { value: { bot: false, id: "0" } });
 		Object.defineProperty(message, "client", {
 			value: {
 				user,
@@ -44,7 +55,9 @@ describe("Message event listener", () => {
 			}
 		});
 		message.mentions = new MessageMentions();
-		message.mentions.has = jest.fn(thing => thing === user);
+		Object.defineProperty(message.mentions, "parsedUsers", {
+			value: new Collection([["383854640694820865", user]])
+		});
 		message.createdTimestamp = 0;
 		message.reply = jest.fn(async () => message);
 		message.edit = jest.fn();
@@ -57,19 +70,15 @@ describe("Message event listener", () => {
 		expect(message.reply).not.toHaveBeenCalled();
 	});
 
-	test("ignores replies", async () => {
-		message.reference = {
-			guildId: "0",
-			channelId: "1",
-			messageId: "0"
-		};
+	test("ignores system message", async () => {
+		message.system = true;
 
 		await listener.run(message);
 		expect(message.reply).not.toHaveBeenCalled();
 	});
 
 	test("only responds to mentions", async () => {
-		message.mentions.has = jest.fn(() => false);
+		message.mentions.parsedUsers.clear();
 
 		await listener.run(message);
 		expect(message.reply).not.toHaveBeenCalled();
